@@ -1,0 +1,15 @@
+# --- 电子书本体：不纳入版本控制（文件放网盘，仓库只留 books/<书名>.md 详情页）---
+*.epub
+*.pdf
+*.mobi
+*.azw3
+*.djvu
+*.chm
+*.caj
+
+# --- 系统 / 编辑器杂项 ---
+.DS_Store
+Thumbs.db
+*.swp
+*.tmp
+node_modules/

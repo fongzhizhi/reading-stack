@@ -1,0 +1,13 @@
+{
+  "name": "reading-stack",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "index": "node scripts/index.mjs",
+    "check": "node scripts/check.mjs",
+    "scaffold": "node scripts/scaffold.mjs"
+  }
+}
