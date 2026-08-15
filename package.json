@@ -8,6 +8,8 @@
   "scripts": {
     "index": "node scripts/index.mjs",
     "check": "node scripts/check.mjs",
-    "scaffold": "node scripts/scaffold.mjs"
+    "scaffold": "node scripts/scaffold.mjs",
+    "note": "node scripts/note.mjs",
+    "note:sync": "node scripts/note.mjs sync"
   }
 }

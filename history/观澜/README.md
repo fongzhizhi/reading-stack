@@ -2,7 +2,6 @@
 name: 观澜
 created: 2026-08-14
 category: history
-status: 未开始
 description: 用4本书搭建中国通史骨架，建立时空坐标与历史感知。读完能清晰说出从夏到清的大脉络、三个关键转折点，并对某个朝代产生深入兴趣。
 ---
 

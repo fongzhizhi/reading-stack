@@ -3,7 +3,7 @@
 //   --strict：未收集 / 未记笔记也从「提醒」升级为「错误」，CI 用。
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { ROOT, listBooklists, parseFrontmatter, parseTables, bookListTitles, OK, WARN, ERR } from './lib.mjs'
+import { ROOT, listBooklists, parseFrontmatter, parseTables, bookListTitles, booklistStatus, readStatusOf, OK, WARN, ERR } from './lib.mjs'
 
 const STRICT = process.argv.includes('--strict')
 
@@ -29,7 +29,7 @@ for (const { cat, name, path } of listBooklists()) {
   } else {
     if (fm.name !== name) { ERR(`frontmatter name「${fm.name}」与目录名不一致`); errors++ }
     if (fm.category !== cat) { ERR(`frontmatter category「${fm.category}」与所在目录「${cat}」不一致`); errors++ }
-    if (!['未开始', '在读', '读毕'].includes(fm.status)) { ERR(`status「${fm.status}」非法；应为 未开始/在读/读毕`); errors++ }
+    // 书单无 status 字段：总状态由清单书籍的阅读状态汇总（booklistStatus），这里不再校验
   }
 
   // ---------- 三点对齐 ----------
@@ -80,8 +80,38 @@ for (const { cat, name, path } of listBooklists()) {
   const orphanCollected = collected.filter((t) => !titles.includes(t))  // 孤儿：books 有但清单没登记
   const orphanNoteted = noteted.filter((t) => !titles.includes(t))      // 孤儿：notes 有但清单没登记
 
-  // 未开始的书单：笔记缺失是预期（还没读），只看收集情况，减少噪声
-  const skipNotes = !fm || fm.status === '未开始'
+  // 书单总状态 = 书籍阅读状态汇总：推导为「在读」时才提醒缺笔记（未读书单没笔记是预期，只看收集情况，减少噪声）
+  const skipNotes = booklistStatus(path) !== 'reading'
+
+  // 有笔记目录但导航页 status 未识别（应为 reading/readed，其他值或空视为未读）→ 提醒补状态
+  // 索引表与笔记文件一致性：登记了但文件不存在 → 错误；文件存在但没登记 → 提醒（note --sync 可自动修复）
+  for (const dir of notesDirs(path)) {
+    const nav = join(dir, 'README.md')
+    if (existsSync(nav) && !readStatusOf(parseFrontmatter(nav))) {
+      WARN(`《${noteName(dir)}》笔记导航页 status 未识别（应为 reading/readed）`)
+      warnings++
+    }
+    if (!existsSync(nav)) continue
+    const registered = new Set()
+    for (const line of readFileSync(nav, 'utf8').split(/\r?\n/)) {
+      if (!line.trimStart().startsWith('|')) continue
+      const m = line.match(/\[([^\]]+)\]\(([^)]+\.md)\)/)
+      if (!m) continue
+      const file = m[2].replace(/^\.\//, '')
+      if (file === 'README.md' || file.includes('/')) continue
+      registered.add(file)
+      if (!existsSync(join(dir, file))) {
+        ERR(`《${noteName(dir)}》导航页登记了不存在的笔记：${file}（删了笔记就删掉这行，或 npm run note <目录> --sync）`)
+        errors++
+      }
+    }
+    for (const f of readdirSync(dir).filter((f) => f.endsWith('.md') && f !== 'README.md')) {
+      if (!registered.has(f)) {
+        WARN(`《${noteName(dir)}》有笔记未在导航页登记：${f}（npm run note <目录> --sync 可自动补）`)
+        warnings++
+      }
+    }
+  }
 
   for (const t of missingCollected) { WARN(`未收集：《${t}》`); warnings++ }
   if (!skipNotes) for (const t of missingNoteted) { WARN(`未记笔记：《${t}》`); warnings++ }

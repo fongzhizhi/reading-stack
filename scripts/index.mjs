@@ -2,7 +2,7 @@
 // 用法：node scripts/index.mjs
 import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { ROOT, listBooklists, parseFrontmatter, countBooks, countNotes, bookListTitles, OK, WARN } from './lib.mjs'
+import { ROOT, listBooklists, parseFrontmatter, countBooks, countNotes, bookListTitles, categoryLabel, categoryRank, booklistStatus, readStatusOf, statusLabel, OK, WARN } from './lib.mjs'
 
 const README_FILE = join(ROOT, 'README.md')
 const banner = (name) => `<!-- ${name}:START -->`
@@ -13,7 +13,7 @@ const region = (name, body) => `${banner(name)}\n\n${body}\n\n${footer(name)}` /
 const rel = (l, ...rest) => [l.cat, l.name, ...rest].join('/')
 const link = (path) => encodeURI(path) // 中文文件名必须编码，否则 GitHub 上部分客户端会断链
 
-/** 书单一览：按分类分组，每组一张表（分类无书单不建表）。分类内按 updated 降序（最近活动的在前），缺 updated 用 created，再缺省按目录名。 */
+/** 书单一览：按分类分组，每组一张表（分类无书单不建表）。分类顺序按 CATEGORY_MAP（未登记的排最后），分类内按 updated 降序（最近活动的在前），缺 updated 用 created，再缺省按目录名。 */
 function buildBooklist(lists) {
   const byCat = new Map()
   for (const l of lists) {
@@ -21,7 +21,7 @@ function buildBooklist(lists) {
     byCat.get(l.cat).push(l)
   }
   const blocks = []
-  for (const cat of byCat.keys()) {
+  for (const cat of [...byCat.keys()].sort((a, b) => categoryRank(a) - categoryRank(b) || a.localeCompare(b))) {
     const group = byCat.get(cat)
     const active = (l) => {
       const fm = parseFrontmatter(join(l.path, 'README.md')) ?? {}
@@ -36,18 +36,19 @@ function buildBooklist(lists) {
       return a.name.localeCompare(b.name)
     })
     const rows = group.map((l) => {
-      const fm = parseFrontmatter(join(l.path, 'README.md')) ?? {}
-      return `| ${l.name} | ${fm.status ?? '未开始'} | ${countBooks(l.path)} | ${countNotes(l.path)} | [README](${link(rel(l, 'README.md'))}) |`
+      // 状态由清单书籍的阅读状态汇总：全部读完→已读；有在读→在读；否则未读
+      return `| [${l.name}](${link(rel(l, 'README.md'))}) | ${statusLabel(booklistStatus(l.path))} | ${countBooks(l.path)} | ${countNotes(l.path)} |`
     })
-    rows.unshift('| 书单 | 状态 | 书籍 | 笔记 | 入口 |', '| :--- | :--- | ---: | ---: | :--- |')
-    blocks.push(`### ${cat}\n\n${rows.join('\n')}`)
+    rows.unshift('| 书单 | 状态 | 书籍 | 笔记 |', '| :--- | :--- | ---: | ---: |')
+    blocks.push(`### ${categoryLabel(cat)}\n\n${rows.join('\n')}`)
   }
   return blocks.join('\n\n')
 }
 
 /**
- * 读书记录：三张表（已读 / 在读 / 未读），按 books/<书名>.md 的更新时间降序。
- * 列：书名（有详情页才可点） | 所属书单 | 分类。未收集详情页的书排在最后。
+ * 读书记录：三张表（已读 / 在读 / 未读），按详情页 frontmatter 的 updated 降序（缺省 created），
+ * 无日期用文件更新时间兜底，未收集详情页的书排在最后。
+ * 列：书名（有详情页才可点） | 笔记（无则「无」） | 所属书单 | 分类。
  */
 function buildReadlog(lists) {
   const groups = { 读完: [], 在读: [], 未读: [] }
@@ -56,14 +57,17 @@ function buildReadlog(lists) {
     for (const title of bookListTitles(text)) {
       const bookFile = join(l.path, 'books', `${title}.md`)
       const mtime = existsSync(bookFile) ? statSync(bookFile).mtimeMs : -1
+      const bookFm = existsSync(bookFile) ? parseFrontmatter(bookFile) : null
+      const fmDate = bookFm?.updated || bookFm?.created // 与书单一致：updated 优先，缺省 created
+      const date = fmDate && /^\d{4}-\d{2}-\d{2}/.test(fmDate) ? Date.parse(fmDate) : mtime
       const noteFm = existsSync(join(l.path, 'notes', title, 'README.md'))
         ? parseFrontmatter(join(l.path, 'notes', title, 'README.md'))
         : null
-      const status = noteFm?.status === '读完' || noteFm?.status === '在读' ? noteFm.status : '未读'
-      groups[status].push({ title, mtime, list: l })
+      const status = { reading: '在读', readed: '读完' }[readStatusOf(noteFm)] ?? '未读'
+      groups[status].push({ title, date, list: l })
     }
   }
-  const sortRow = (a, b) => (b.mtime !== a.mtime ? b.mtime - a.mtime : a.title.localeCompare(b.title))
+  const sortRow = (a, b) => (b.date !== a.date ? b.date - a.date : a.title.localeCompare(b.title))
 
   const table = (rows) => {
     rows.sort(sortRow)
@@ -72,9 +76,12 @@ function buildReadlog(lists) {
       const bookLink = existsSync(join(list.path, 'books', `${title}.md`))
         ? `[《${title}》](${link(rel(list, 'books', `${title}.md`))})`
         : `《${title}》`
-      return `| ${bookLink} | [${list.name}](${link(rel(list, 'README.md'))}) | ${list.cat} |`
+      const noteLink = existsSync(join(list.path, 'notes', title, 'README.md'))
+        ? `[查看](${link(rel(list, 'notes', title, 'README.md'))})`
+        : '无'
+      return `| ${bookLink} | ${noteLink} | [${list.name}](${link(rel(list, 'README.md'))}) | ${categoryLabel(list.cat)} |`
     })
-    lines.unshift('| 书名 | 所属书单 | 分类 |', '| :--- | :--- | :--- |')
+    lines.unshift('| 书名 | 笔记 | 所属书单 | 分类 |', '| :--- | :--- | :--- | :--- |')
     return lines.join('\n')
   }
 
@@ -93,12 +100,11 @@ let problems = 0
 for (const { cat, name, path } of lists) {
   const fm = parseFrontmatter(join(path, 'README.md'))
   if (!fm) {
-    WARN(`${cat}/${name} 缺少 frontmatter，状态列将显示「未开始」`)
+    WARN(`${cat}/${name} 缺少 frontmatter，无法校验 name/category`)
     problems++
   } else {
     if (fm.name !== name) WARN(`${cat}/${name} frontmatter name「${fm.name}」与目录名不一致`)
     if (fm.category !== cat) WARN(`${cat}/${name} frontmatter category「${fm.category}」与所在目录「${cat}」不一致`)
-    if (!['未开始', '在读', '读毕'].includes(fm.status)) WARN(`${cat}/${name} status「${fm.status}」非法，应为 未开始/在读/读毕`)
   }
 }
 

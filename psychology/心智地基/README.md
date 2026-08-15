@@ -2,7 +2,6 @@
 name: 心智地基
 created: 2026-08-14
 category: psychology
-status: 未开始
 description: 为心理学初学者建立科学头脑的四阶奠基书单，清除伪心理学病毒，打下方法论与系统认知的地基。
 ---
 

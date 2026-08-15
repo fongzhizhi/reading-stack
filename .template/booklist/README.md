@@ -3,7 +3,6 @@ name: 书单名
 created: 2026-08-14
 updated: 2026-08-14
 category: programming
-status: 未开始
 description: 一句话：这个书单解决什么问题、读完获得什么
 ---
 

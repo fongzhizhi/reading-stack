@@ -3,7 +3,6 @@
 name: 看见看不见的
 created: 2026-08-14
 category: economics
-status: 在读
 description: 用日常现象建立成本思维与激励视角，让经济学天线立起来，对“代价”和“反应”产生生理级敏感。
 ---
 

@@ -34,7 +34,6 @@ name: 书单名          # 书单名，与目录名一致（中文）
 created: 2026-08-14  # 创建日期（建书单时填当天）
 updated: 2026-08-14  # 可选：最近活动日期。开始读 / 读完 / 调整书单时顺手改成当天，一览表排序优先用它；缺省退回 created，再缺省按目录名
 category: programming # 大分类，必须与其所在目录名一致（programming / history / economics / psychology / yi / zhuzi / literature / others）
-status: 未开始         # 取值：未开始 | 在读 | 读毕
 description: 一句话   # 简介，会展示在根 README 一览表
 ---
 ```

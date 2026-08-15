@@ -2,7 +2,6 @@
 name: 定锚
 created: 2026-08-14
 category: programming
-status: 未开始
 description: 在 AI 代码生成冲击下，用三本经典重塑判断力底座，避免被工具冲垮。
 ---
 

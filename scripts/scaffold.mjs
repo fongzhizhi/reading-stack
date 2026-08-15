@@ -22,8 +22,8 @@ const SKIP_CATS = new Set(['.git', '.template', 'scripts', 'docs', 'node_modules
 const isDir = (p) => statSync(p, { throwIfNoEntry: false })?.isDirectory() ?? false
 const hasReadme = (dir) => existsSync(join(dir, 'README.md'))
 
-/** 详情页模板来自 .template/书籍模板.md（注释行不进入产物），改格式不用动代码。 */
-const TEMPLATE_FILE = join(ROOT, '.template', '书籍模板.md')
+/** 详情页模板来自 .template/book.md（注释行不进入产物），改格式不用动代码。 */
+const TEMPLATE_FILE = join(ROOT, '.template', 'book.md')
 function loadBookTemplate() {
   if (!existsSync(TEMPLATE_FILE)) {
     console.error(`❌ 找不到详情页模板：${TEMPLATE_FILE}（scaffold 依赖它生成 books/<书名>.md）`)
@@ -34,12 +34,22 @@ function loadBookTemplate() {
     .replace(/^\n+/, '') // 去掉开头空行
 }
 
-/** 渲染详情页骨架。name 不带《》。 */
+/** 今天的本地日期（YYYY-MM-DD）。 */
+const today = () => {
+  const d = new Date()
+  const p = (n) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
+}
+
+/** 渲染详情页骨架。name 不带《》。created/updated 自动填当天，后续由人按需改。 */
 function renderBookSkeleton(tpl, { name, author, version }) {
   return tpl
     .replaceAll('{{书名}}', name)
     .replaceAll('{{作者}}', author || '待补充')
     .replaceAll('{{版本}}', version || '待补充')
+    .replaceAll('{{ISBN}}', '待补充')
+    .replaceAll('{{创建日期}}', today())
+    .replaceAll('{{更新日期}}', today())
 }
 
 /**
