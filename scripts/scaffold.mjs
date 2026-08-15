@@ -47,7 +47,6 @@ function renderBookSkeleton(tpl, { name, author, version }) {
     .replaceAll('{{书名}}', name)
     .replaceAll('{{作者}}', author || '待补充')
     .replaceAll('{{版本}}', version || '待补充')
-    .replaceAll('{{ISBN}}', '待补充')
     .replaceAll('{{创建日期}}', today())
     .replaceAll('{{更新日期}}', today())
 }
